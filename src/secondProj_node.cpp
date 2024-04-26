@@ -23,7 +23,9 @@ double quatw = 0;
 
 // Declaracion de variables
 std::vector<float> laser_ranges; // Los valores queda el laser son float
-std::vector<double> vector_vff, target_vector, repulsion_vector;
+std::vector<double> vector_vff = {0.0, 0.0};
+std::vector<double> target_vector = {0.0, 0.0};
+std::vector<double> repulsion_vector = {0.0, 0.0};
 Point arrayOfPoints[4];
 Point robotPosicion;
 double alpha = 0.1; // Modificar el valor segun necesario.
@@ -48,8 +50,9 @@ void odometryCallback(const nav_msgs::OdometryConstPtr& msg){
 
     tf::Quaternion q(quatx, quaty, quatz, quatw);
     tf::Matrix3x3 m(q);
-    m.getRPY(roll, pitch, yaw);
-    ROS_INFO("Roll: %f, Pitch: %f, Yaw: %f", roll, pitch, yaw*180/M_PI);
+    m.getRPY(roll, pitch, robotPosicion.theta);
+    robotPosicion.theta *= 180/M_PI; // Convierte a grados
+    ROS_INFO("Roll: %f, Pitch: %f, Yaw: %f", roll, pitch, yaw);
 }
 // Para ver las medidas debe existir el TOPIC del laser, para ello usar la GUI del simulador.
 // Asumiendo un eje cartesiano  cuyo angulo cero esta al ESTE y aumenta en sentido antihorario,
@@ -79,14 +82,12 @@ void aplicarMatrizGiro(Point punto){
 }
 
 void calculaVectorRepulsion(Point robotTarget, std::vector<float> laser_ranges){
-    double sensor_meas;
     std::vector<float> vector_obs;
-    vector_obs[0];
     for(int i=180-45; i<180+45; i++){
-        vector_obs[0] += 1/laser_ranges[i]*sin(robotTarget.theta);
-    }
-    for(int i=-45; i<45; i++){
-        vector_obs[1] += 1/laser_ranges[i]*cos(robotTarget.theta);
+        float angle = -45*M_PI/180;
+        repulsion_vector[0] += 1/laser_ranges[i]*sin(angle);
+        repulsion_vector[1] += 1/laser_ranges[i]*cos(angle);
+        angle += M_PI/180; 
     }
 }
 
@@ -97,11 +98,12 @@ void calculaTargetVector(Point robotPosic, Point robotTarget){
     aplicarMatrizGiro(targetVector);
 }
 
-// void calculateDirectionVector(){
-//     calculaTargetVector();
-//     calculaVectorRepulsion();
-//     vector_vff = target_vector + repulsion_vector * alpha;
-// }
+void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vector<float> laser_ranges, double alpha){
+    calculaTargetVector(robotPosicion, robotTarget);
+    calculaVectorRepulsion(robotPosicion, laser_ranges);
+    vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha;
+    vector_vff[1] = target_vector[1] + repulsion_vector[1] * alpha;
+}
 
 void try_move(Point robotPosic, geometry_msgs::Twist &speed ){
     double error_orientation, error_distance;
@@ -119,7 +121,6 @@ void try_move(Point robotPosic, geometry_msgs::Twist &speed ){
 }
 
 int main(int argc, char** argv){
-
 
 	ros::init(argc,argv,"firstProj");	
 	ros::NodeHandle nh;	
@@ -155,6 +156,14 @@ int main(int argc, char** argv){
     ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
     ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
 
+
+    // Imprimir el vector de obstaculos
+
+
+    // ========================================================
+    // Empieza el bucle WHILE
+    // ========================================================
+    
     ros::Rate loop(10); // Ejecuta a hercios
 	while(ros::ok()){ // Espera a que el master este listo para comunicarse
 		geometry_msgs::Twist speed;
@@ -164,10 +173,14 @@ int main(int argc, char** argv){
         try_move(robotPosicion,speed);
 		speed_pub.publish(speed);
 
+        // Aqui va la funcion que calcula el vector VFF
+
         // if(repulsion_vector[0] > threshold){
         //     speed.linear.x = 0.2;
         //     speed.angular.z = vector_vff[0] * alpha;
         // }
+
+        // Finalmente actualiza la velocidad
         // speed_pub.publish(speed);
 
 		ros::spinOnce();
