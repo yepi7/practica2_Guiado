@@ -30,6 +30,8 @@ Point arrayOfPoints[4];
 Point robotPosicion;
 double alpha = 0.1; // Modificar el valor segun necesario.
 double roll, pitch, yaw;
+double error_orientation = 0;
+double error_distance = 0;
 double threshold = 0.1;
 float linearposx;
 float linearposy;
@@ -53,6 +55,7 @@ void odometryCallback(const nav_msgs::OdometryConstPtr& msg){
     m.getRPY(roll, pitch, robotPosicion.theta);
     robotPosicion.theta *= 180/M_PI; // Convierte a grados
     ROS_INFO("Roll: %f, Pitch: %f, Yaw: %f", roll, pitch, yaw);
+    ROS_INFO("RobotPostion: (%f,%f,%f)",robotPosicion.x,robotPosicion.y,robotPosicion.theta);
 }
 // Para ver las medidas debe existir el TOPIC del laser, para ello usar la GUI del simulador.
 // Asumiendo un eje cartesiano  cuyo angulo cero esta al ESTE y aumenta en sentido antihorario,
@@ -81,7 +84,7 @@ void aplicarMatrizGiro(Point punto){
     punto.y = std::sin(punto.theta)*xAux + std::cos(punto.theta)*yAux;
 }
 
-void calculaVectorRepulsion(Point robotTarget, std::vector<float> laser_ranges){
+void calculaVectorRepulsion(Point robotTarget, std::vector<float> &laser_ranges){
     std::vector<float> vector_obs;
     for(int i=180-45; i<180+45; i++){
         float angle = -45*M_PI/180;
@@ -98,7 +101,7 @@ void calculaTargetVector(Point robotPosic, Point robotTarget){
     aplicarMatrizGiro(targetVector);
 }
 
-void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vector<float> laser_ranges, double alpha){
+void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vector<float> &laser_ranges, double alpha){
     calculaTargetVector(robotPosicion, robotTarget);
     calculaVectorRepulsion(robotPosicion, laser_ranges);
     vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha;
@@ -106,7 +109,6 @@ void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vecto
 }
 
 void try_move(Point robotPosic, geometry_msgs::Twist &speed ){
-    double error_orientation, error_distance;
     error_orientation = atan2((arrayOfPoints[0].y-robotPosic.y),(arrayOfPoints[0].x-robotPosic.x));
     error_distance = sqrt(pow((arrayOfPoints[0].x-robotPosic.x),2) + pow((arrayOfPoints[0].y-robotPosic.y),2));
     
@@ -174,7 +176,7 @@ int main(int argc, char** argv){
 		speed_pub.publish(speed);
 
         // Aqui va la funcion que calcula el vector VFF
-
+        calculateDirectionVector(robotPosicion,arrayOfPoints[1],laser_ranges,alpha);
         // if(repulsion_vector[0] > threshold){
         //     speed.linear.x = 0.2;
         //     speed.angular.z = vector_vff[0] * alpha;
