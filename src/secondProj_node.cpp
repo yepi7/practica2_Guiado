@@ -138,7 +138,7 @@ int main(int argc, char** argv){
         point->QueryIntAttribute("y", &y);
         arrayOfPoints[i].x=x;
         arrayOfPoints[i].y=y;
-        std::cout << "Punto: X=" << x << ", Y=" << y << std::endl;
+        std::cout << "Punto: X=" << x << ", Y=" << y << std::endl; 
     }
 //-------------------------Fin del XML-------------------------------------------
 
