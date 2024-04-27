@@ -54,8 +54,8 @@ void odometryCallback(const nav_msgs::OdometryConstPtr& msg){
     tf::Matrix3x3 m(q);
     m.getRPY(roll, pitch, robotPosicion.theta);
     robotPosicion.theta *= 180/M_PI; // Convierte a grados
-    ROS_INFO("Roll: %f, Pitch: %f, Yaw: %f", roll, pitch, yaw);
-    ROS_INFO("RobotPostion: (%f,%f,%f)",robotPosicion.x,robotPosicion.y,robotPosicion.theta);
+    // ROS_INFO("Roll: %f, Pitch: %f, Yaw: %f", roll, pitch, yaw);
+    ROS_INFO("RobotPostion: (%f,%f,%f)",robotPosicion.x,robotPosicion.y,robotPosicion.theta); // Funciona bien
 }
 // Para ver las medidas debe existir el TOPIC del laser, para ello usar la GUI del simulador.
 // Asumiendo un eje cartesiano  cuyo angulo cero esta al ESTE y aumenta en sentido antihorario,
@@ -64,11 +64,12 @@ void odometryCallback(const nav_msgs::OdometryConstPtr& msg){
 // es 180.
 void laserCallback(const sensor_msgs::LaserScanPtr& msg){
     
+    ROS_INFO("Longitud del laser de ROS: %ld",msg->ranges.size());
     // Redimensionamos el tamano del vector para evitar problemas.
     laser_ranges.resize(msg->ranges.size());
     // Guarda el array de distancias. El anguulo de appuntamiento esta en la posicion 180.
     laser_ranges = msg->ranges;
-
+    ROS_INFO("Longitud del vector laser_ranges: %ld",laser_ranges.size());
     // // Imprimir los valores del laser
     // ROS_INFO("Valores del laser:");
     // for (int i = 0; i < msg->ranges.size(); ++i){
@@ -85,11 +86,15 @@ void aplicarMatrizGiro(Point punto){
 }
 
 void calculaVectorRepulsion(Point robotTarget, std::vector<float> &laser_ranges){
-    std::vector<float> vector_obs;
-    for(int i=180-45; i<180+45; i++){
+    if (laser_ranges.size() < 135) {
+    ROS_INFO("La longitud del laser es: %ld",laser_ranges.size());
+    ROS_WARN("laser_ranges no tiene suficientes elementos.");
+    return;
+    }
+    for(int i=135; i<225; i++){ // Probar con los 360 valores a ver si mejora  la repulsion.
         float angle = -45*M_PI/180;
-        repulsion_vector[0] += 1/laser_ranges[i]*sin(angle);
-        repulsion_vector[1] += 1/laser_ranges[i]*cos(angle);
+        repulsion_vector[0] += 1/laser_ranges[i]*cos(angle);
+        repulsion_vector[1] += 1/laser_ranges[i]*sin(angle);
         angle += M_PI/180; 
     }
 }
@@ -104,21 +109,27 @@ void calculaTargetVector(Point robotPosic, Point robotTarget){
 void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vector<float> &laser_ranges, double alpha){
     calculaTargetVector(robotPosicion, robotTarget);
     calculaVectorRepulsion(robotPosicion, laser_ranges);
-    vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha;
-    vector_vff[1] = target_vector[1] + repulsion_vector[1] * alpha;
+    // vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha; // quitar el alpha, no afecta al movimiento, variarlo segun mapa
+    // vector_vff[1] = target_vector[1] + repulsion_vector[1] * alpha;
 }
 
 void try_move(Point robotPosic, geometry_msgs::Twist &speed ){
-    error_orientation = atan2((arrayOfPoints[0].y-robotPosic.y),(arrayOfPoints[0].x-robotPosic.x));
+    std::cout << "--------------------------------------" << std::endl;
+    error_orientation = atan2((arrayOfPoints[0].y-robotPosic.y),(arrayOfPoints[0].x-robotPosic.x))*180/M_PI - robotPosic.theta;
     error_distance = sqrt(pow((arrayOfPoints[0].x-robotPosic.x),2) + pow((arrayOfPoints[0].y-robotPosic.y),2));
-    
-    if(error_orientation > 0.01){
-        speed.angular.z = 0.1;
+    ROS_INFO("El punto objetivo es: (%f,%f)",arrayOfPoints[0].x,arrayOfPoints[0].y);
+    ROS_INFO("La posicion theta es: %f",robotPosic.theta);
+    ROS_INFO("El angulo objetivo es: %f",atan2((arrayOfPoints[0].y-robotPosic.y),(arrayOfPoints[0].x-robotPosic.x))*180/M_PI);
+    ROS_INFO("Error orientation: %f --- Error distance: %f",error_orientation,error_distance);
+    if(error_orientation > 3){
+        speed.angular.z = 0.05; // Revisar si esto afecta al tambaleo del robot
         speed.linear.x = 0;
+        // ROS_INFO("Entra en el Primer IF");
     }
-    else if(error_distance > 0.01){
+    else if(error_distance > 1){
         speed.angular.z = 0;
         speed.linear.x = 0.1;
+        // ROS_INFO("Entra en el segundo IF");
     }
 }
 
@@ -173,13 +184,13 @@ int main(int argc, char** argv){
         
         // Genera ERROR de SegmentationFault
         try_move(robotPosicion,speed);
-		speed_pub.publish(speed);
+		speed_pub.publish(speed); // Quitar
 
         // Aqui va la funcion que calcula el vector VFF
-        calculateDirectionVector(robotPosicion,arrayOfPoints[1],laser_ranges,alpha);
-        // if(repulsion_vector[0] > threshold){
+        calculateDirectionVector(robotPosicion,arrayOfPoints[0],laser_ranges,alpha);
+        // if(repulsion_vector[0] > threshold){ // threshold varia si es con robot real o no
         //     speed.linear.x = 0.2;
-        //     speed.angular.z = vector_vff[0] * alpha;
+        //     speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
         // }
 
         // Finalmente actualiza la velocidad
