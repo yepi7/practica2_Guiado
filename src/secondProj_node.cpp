@@ -136,13 +136,13 @@ void try_move(Point robotPosic, geometry_msgs::Twist &speed, Point &robotTarget)
     // ROS_INFO("El angulo objetivo es: %f",atan2((robotTarget.y-robotPosic.y),(robotTarget.x-robotPosic.x))*180/M_PI);
     // ROS_INFO("Error orientation: %f --- Error distance: %f",error_orientation,error_distance);
     if(error_orientation > 3){
-        speed.angular.z = 0.05; // Revisar si esto afecta al tambaleo del robot
+        speed.angular.z = 0.1; // Revisar si esto afecta al tambaleo del robot
         speed.linear.x = 0;
         // ROS_INFO("Entra en el Primer IF");
     }
     else if(error_distance > 1){
         speed.angular.z = 0;
-        speed.linear.x = 0.1;
+        speed.linear.x = 0.5;
         // ROS_INFO("Entra en el segundo IF");
     }
 }
@@ -202,10 +202,10 @@ int main(int argc, char** argv){
 
         // Aqui va la funcion que calcula el vector VFF
         calculateDirectionVector(robotPosicion,arrayOfPoints[0],laser_ranges,alpha);
-        // if(repulsion_vector[0] > threshold){ // threshold varia si es con robot real o no
-        //     speed.linear.x = 0.2;
-        //     speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
-        // }
+        if(repulsion_vector[0] > threshold){ // threshold varia si es con robot real o no
+            speed.linear.x = 0.2;
+            speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
+        }
 
         // Finalmente actualiza la velocidad
         // speed_pub.publish(speed);
