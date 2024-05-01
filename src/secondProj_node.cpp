@@ -77,15 +77,12 @@ void laserCallback(const sensor_msgs::LaserScanPtr& msg){
     // }
 }
 
-void aplicarMatrizGiro(Point punto){
-    double xAux, yAux;
-    xAux = punto.x;
-    yAux = punto.y;
-    punto.x = std::cos(punto.theta)*xAux - std::sin(punto.theta)*yAux;
-    punto.y = std::sin(punto.theta)*xAux + std::cos(punto.theta)*yAux;
+void aplicarMatrizGiro(std::vector<double> &vector){
+    vector[0] = std::cos(robotPosicion.theta)*vector[0] - std::sin(robotPosicion.theta)*vector[1];
+    vector[1] = std::sin(robotPosicion.theta)*vector[0] + std::cos(robotPosicion.theta)*vector[1];
 }
 
-void calculaVectorRepulsion(Point robotTarget, std::vector<float> &laser_ranges){
+void calculaVectorRepulsion(Point &robotTarget, std::vector<float> &laser_ranges){
     if (laser_ranges.size() < 135) {
     ROS_INFO("La longitud del laser es: %ld",laser_ranges.size());
     ROS_WARN("laser_ranges no tiene suficientes elementos.");
@@ -99,14 +96,13 @@ void calculaVectorRepulsion(Point robotTarget, std::vector<float> &laser_ranges)
     }
 }
 
-void calculaTargetVector(Point robotPosic, Point robotTarget){
-    Point targetVector;
-    targetVector.x = robotPosic.x - robotTarget.x;
-    targetVector.y = robotPosic.y - robotTarget.y;
-    aplicarMatrizGiro(targetVector);
+void calculaTargetVector(Point &robotPosic, Point &robotTarget){
+    target_vector[0] = robotPosic.x - robotTarget.x;
+    target_vector[1] = robotPosic.y - robotTarget.y;
+    aplicarMatrizGiro(target_vector);
 }
 
-void calculateDirectionVector(Point robotPosicion, Point robotTarget, std::vector<float> &laser_ranges, double alpha){
+void calculateDirectionVector(Point &robotPosicion, Point &robotTarget, std::vector<float> &laser_ranges, double &alpha){
     calculaTargetVector(robotPosicion, robotTarget);
     calculaVectorRepulsion(robotPosicion, laser_ranges);
     // vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha; // quitar el alpha, no afecta al movimiento, variarlo segun mapa
@@ -177,7 +173,7 @@ int main(int argc, char** argv){
     // Empieza el bucle WHILE
     // ========================================================
     
-    ros::Rate loop(10); // Ejecuta a hercios
+    ros::Rate loop(1); // Ejecuta a hercios
 	while(ros::ok()){ // Espera a que el master este listo para comunicarse
 		geometry_msgs::Twist speed;
 		//geometry_msgs::Pose position;
