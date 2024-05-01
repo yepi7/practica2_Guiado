@@ -103,7 +103,7 @@ void calculaObstacleVector(Point &robotTarget, std::vector<float> &laser_ranges)
         repulsion_vector[0] += 1/laser_ranges[i]*cos(angle);
         repulsion_vector[1] += 1/laser_ranges[i]*sin(angle);
         angle += M_PI/180; 
-    }
+    } 
 
     // ------------POLARES------------
     // repulsion_vector[0] = 0; // Inicializamos el valor del vector
