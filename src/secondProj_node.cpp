@@ -5,6 +5,7 @@
 #include "tinyxml2.h"
 #include <tf/transform_datatypes.h>
 #include <cmath>
+#include "std_msgs/Int32.h" // Para el motor
 
 struct Point {
     double x;
@@ -185,16 +186,19 @@ int main(int argc, char** argv){
 	ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/robot0/cmd_vel",1000);
     ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
     ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
-
+	ros::Publisher motor_pub = nh.advertise<std_msgs::Int32>("/cmd_motor_state",1);
 
     // Imprimir el vector de obstaculos
 
+    std_msgs::Int32 enable;
+    enable.data=1;
+    motor_pub.publish(enable);
 
     // ========================================================
     // Empieza el bucle WHILE
     // ========================================================
     
-    ros::Rate loop(1); // Ejecuta a hercios
+    ros::Rate loop(10); // Ejecuta a hercios
 	while(ros::ok()){ // Espera a que el master este listo para comunicarse
 		geometry_msgs::Twist speed;
 		//geometry_msgs::Pose position;
@@ -207,20 +211,25 @@ int main(int argc, char** argv){
         int res = calculateDirectionVector(robotPosicion,arrayOfPoints[0],laser_ranges,alpha);
         float  rep = sqrt(pow(repulsion_vector[0],2)+pow(repulsion_vector[1],2));
         float ror = atan2(repulsion_vector[1],repulsion_vector[0]);
-        if(res == 0 and rep > threshold){ // threshold varia si es con robot real o no
+        if(res == 0 and rep > threshold){ // compara la magnitud del vector de repulsion con un valor limite
             std::cout << "Repulsion: " << rep << std::endl;
             speed.linear.x = 0.2;
             // speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
             if (ror > 0){
-                speed.angular.z = rep * -1 * alpha;
+                speed.angular.z = vector_vff[0] * -1 * alpha;
             }
             else{
-                speed.angular.z = rep * alpha;
+                speed.angular.z = vector_vff[0] * alpha;
             }
         }
 
         // Finalmente actualiza la velocidad
-         speed_pub.publish(speed);
+
+        std_msgs::Int32 enable;
+        enable.data=1;
+        motor_pub.publish(enable);
+
+        speed_pub.publish(speed);
 
 		ros::spinOnce();
 		loop.sleep();
