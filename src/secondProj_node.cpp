@@ -5,7 +5,7 @@
 #include "tinyxml2.h"
 #include <tf/transform_datatypes.h>
 #include <cmath>
-#include "std_msgs/Int32.h" // Para el motor
+#include "std_msgs/Int32.h" // Para la simulacion real
 
 struct Point {
     double x;
@@ -29,8 +29,8 @@ std::vector<double> target_vector = {0.0, 0.0};
 std::vector<double> repulsion_vector = {0.0, 0.0};
 Point arrayOfPoints[4];
 Point robotPosicion;
-double alpha = 0.01; // Modificar el valor segun necesario.
-double threshold = 10; // Modificar el valor segun necesario.
+double alpha = 0.1; // Modificar el valor segun necesario. Funciona en sim con 0.01.
+double threshold = 1; // Modificar el valor segun necesario. Funciona en sim con 10.
 double roll, pitch, yaw;
 double error_orientation = 0;
 double error_distance = 0;
@@ -182,17 +182,22 @@ int main(int argc, char** argv){
 //-------------------------Fin del XML-------------------------------------------
 
     
-
-	ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/robot0/cmd_vel",1000);
-    ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
-    ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
-	ros::Publisher motor_pub = nh.advertise<std_msgs::Int32>("/cmd_motor_state",1);
-
-    // Imprimir el vector de obstaculos
-
+    // Para la simulacion
+	// ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/robot0/cmd_vel",1000);
+    // ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
+    // ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
+	
+    // Para el robot real
+    ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel",1000);
+    ros::Subscriber laser_meas = nh.subscribe("/scan",1000, laserCallback);
+    ros::Subscriber odom = nh.subscribe("/pose",1000, odometryCallback);
+    ros::Publisher motor_pub = nh.advertise<std_msgs::Int32>("/cmd_motor_state",1);
     std_msgs::Int32 enable;
     enable.data=1;
     motor_pub.publish(enable);
+
+    // Imprimir el vector de obstaculos
+
 
     // ========================================================
     // Empieza el bucle WHILE
@@ -225,10 +230,12 @@ int main(int argc, char** argv){
 
         // Finalmente actualiza la velocidad
 
+        // Necesario para la activacion del motor del robot real.
         std_msgs::Int32 enable;
         enable.data=1;
         motor_pub.publish(enable);
 
+        // Publica la velocidad.
         speed_pub.publish(speed);
 
 		ros::spinOnce();
