@@ -29,8 +29,8 @@ std::vector<double> target_vector = {0.0, 0.0};
 std::vector<double> repulsion_vector = {0.0, 0.0};
 Point arrayOfPoints[4];
 Point robotPosicion;
-double alpha = 0.1; // Modificar el valor segun necesario. Funciona en sim con 0.01.
-double threshold = 1; // Modificar el valor segun necesario. Funciona en sim con 10.
+double alpha = 0.01; // Modificar el valor segun necesario. Funciona en sim con 0.01.
+double threshold = 10; // Modificar el valor segun necesario. Funciona en sim con 10.
 double roll, pitch, yaw;
 double error_orientation = 0;
 double error_distance = 0;
@@ -107,25 +107,13 @@ int calculaObstacleVector(Point &robotTarget, std::vector<float> &laser_ranges){
     ROS_INFO("El vector de REPULSION en cartesianas es: (%f,%f)", repulsion_vector[0], repulsion_vector[1]);
     ROS_INFO("El vector de REPULSION en polares es: (%f,%f)",ro,phi);
 
-    // ------------POLARES------------
-    // repulsion_vector[0] = 0; // Inicializamos el valor del vector
-    // float angle = 135;
-    // for(int i=135; i<225; i++){ // Probar con los 360 valores a ver si mejora  la repulsion.
-    //     repulsion_vector[0] += 1/laser_ranges[i];
-    //     repulsion_vector[1] += angle;
-    //     angle += M_PI/180;
-    // }
-    // ROS_INFO("El vector de REPULSION en polares es: (%f,%f)", repulsion_vector[0], repulsion_vector[1]);
     return 0;
 }
 
 int calculateDirectionVector(Point &robotPosicion, Point &robotTarget, std::vector<float> &laser_ranges, double &alpha){
-    calculaTargetVector(robotPosicion, robotTarget); // OK
+    calculaTargetVector(robotPosicion, robotTarget);
     int res_obs = calculaObstacleVector(robotPosicion, laser_ranges); 
-    // vector_vff[0] = target_vector[0] + repulsion_vector[0] * alpha; // quitar el alpha, no afecta al movimiento, variarlo segun mapa
-    // vector_vff[1] = target_vector[1] + repulsion_vector[1] * alpha;
     
-    // Nueva version:
     vector_vff[0] = target_vector[0] + repulsion_vector[0];
     vector_vff[1] = target_vector[1] + repulsion_vector[1];
     return res_obs;
@@ -140,7 +128,7 @@ void try_move(Point robotPosic, geometry_msgs::Twist &speed, Point &robotTarget)
     // ROS_INFO("El angulo objetivo es: %f",atan2((robotTarget.y-robotPosic.y),(robotTarget.x-robotPosic.x))*180/M_PI);
     // ROS_INFO("Error orientation: %f --- Error distance: %f",error_orientation,error_distance);
     if(error_orientation > 3.0){
-        speed.angular.z = 0.1; // Revisar si esto afecta al tambaleo del robot
+        speed.angular.z = 0.2; // Revisar si esto afecta al tambaleo del robot
         speed.linear.x = 0;
         // ROS_INFO("Entra en el Primer IF");
     }
@@ -151,12 +139,79 @@ void try_move(Point robotPosic, geometry_msgs::Twist &speed, Point &robotTarget)
     }
 }
 
+int cargarXML();
+
+// ========================================================
+// Comienzo del Main
+// ========================================================
+
+
 int main(int argc, char** argv){
 
-	ros::init(argc,argv,"firstProj");	
+	ros::init(argc,argv,"secondProj");	
 	ros::NodeHandle nh;	
+    
+    cargarXML();
 
-//---------------------Parte del XML----------------------------
+    // Para la simulacion
+	ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/robot0/cmd_vel",1000);
+    ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
+    ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
+	
+    // Para el robot real
+    // ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel",1000);
+    // ros::Subscriber laser_meas = nh.subscribe("/scan",1000, laserCallback);
+    // ros::Subscriber odom = nh.subscribe("/pose",1000, odometryCallback);
+    // ros::Publisher motor_pub = nh.advertise<std_msgs::Int32>("/cmd_motor_state",1);
+    // std_msgs::Int32 enable;
+    // enable.data=1;
+    // motor_pub.publish(enable);
+
+    // ========================================================
+    // Empieza el bucle WHILE
+    // ========================================================
+    
+    ros::Rate loop(1); // Ejecuta a hercios
+	while(ros::ok()){ // Espera a que el master este listo para comunicarse
+		geometry_msgs::Twist speed;
+		//geometry_msgs::Pose position;
+        
+        try_move(robotPosicion,speed,arrayOfPoints[0]);
+
+        // Aqui va la funcion que calcula el vector VFF
+        int res = calculateDirectionVector(robotPosicion,arrayOfPoints[0],laser_ranges,alpha);
+        float  rep = sqrt(pow(repulsion_vector[0],2)+pow(repulsion_vector[1],2));
+        float ror = atan2(repulsion_vector[1],repulsion_vector[0]);
+        if(res == 0 and rep > threshold){ // compara la magnitud del vector de repulsion con un valor limite
+            std::cout << "--------------------------" << std::endl;
+            std::cout << "Repulsion: " << rep << std::endl;
+            std::cout << "--------------------------" << std::endl;
+            speed.linear.x = 0.2;
+            // speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
+            if (ror > 0){
+                speed.angular.z = vector_vff[0] * -1 * alpha;
+            }
+            else{
+                speed.angular.z = vector_vff[0] * alpha;
+            }
+        }
+
+        // Necesario para la activacion del motor del robot real.
+        // std_msgs::Int32 enable;
+        // enable.data=1;
+        // motor_pub.publish(enable);
+
+        // Publica la velocidad.
+        speed_pub.publish(speed);
+
+		ros::spinOnce();
+		loop.sleep();
+	}
+
+    return 0;
+}
+
+int cargarXML(){
     tinyxml2::XMLDocument doc;
     doc.LoadFile("/home/alumno/robotica_movil_ws/src/secondProj/src/puntos.xml");
     if (doc.Error()) {
@@ -179,68 +234,4 @@ int main(int argc, char** argv){
         arrayOfPoints[i].y=y;
         std::cout << "Punto: X=" << x << ", Y=" << y << std::endl; 
     }
-//-------------------------Fin del XML-------------------------------------------
-
-    
-    // Para la simulacion
-	// ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/robot0/cmd_vel",1000);
-    // ros::Subscriber laser_meas = nh.subscribe("/robot0/laser_0",1000, laserCallback);
-    // ros::Subscriber odom = nh.subscribe("/robot0/odom",1000, odometryCallback);
-	
-    // Para el robot real
-    ros::Publisher speed_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel",1000);
-    ros::Subscriber laser_meas = nh.subscribe("/scan",1000, laserCallback);
-    ros::Subscriber odom = nh.subscribe("/pose",1000, odometryCallback);
-    ros::Publisher motor_pub = nh.advertise<std_msgs::Int32>("/cmd_motor_state",1);
-    std_msgs::Int32 enable;
-    enable.data=1;
-    motor_pub.publish(enable);
-
-    // Imprimir el vector de obstaculos
-
-
-    // ========================================================
-    // Empieza el bucle WHILE
-    // ========================================================
-    
-    ros::Rate loop(10); // Ejecuta a hercios
-	while(ros::ok()){ // Espera a que el master este listo para comunicarse
-		geometry_msgs::Twist speed;
-		//geometry_msgs::Pose position;
-        
-        // Genera ERROR de SegmentationFault
-        try_move(robotPosicion,speed,arrayOfPoints[0]);
-		//speed_pub.publish(speed); // Quitar
-
-        // Aqui va la funcion que calcula el vector VFF
-        int res = calculateDirectionVector(robotPosicion,arrayOfPoints[0],laser_ranges,alpha);
-        float  rep = sqrt(pow(repulsion_vector[0],2)+pow(repulsion_vector[1],2));
-        float ror = atan2(repulsion_vector[1],repulsion_vector[0]);
-        if(res == 0 and rep > threshold){ // compara la magnitud del vector de repulsion con un valor limite
-            std::cout << "Repulsion: " << rep << std::endl;
-            speed.linear.x = 0.2;
-            // speed.angular.z = vector_vff[0] * alpha; // revisar si va el 0 o el 1.
-            if (ror > 0){
-                speed.angular.z = vector_vff[0] * -1 * alpha;
-            }
-            else{
-                speed.angular.z = vector_vff[0] * alpha;
-            }
-        }
-
-        // Finalmente actualiza la velocidad
-
-        // Necesario para la activacion del motor del robot real.
-        std_msgs::Int32 enable;
-        enable.data=1;
-        motor_pub.publish(enable);
-
-        // Publica la velocidad.
-        speed_pub.publish(speed);
-
-		ros::spinOnce();
-		loop.sleep();
-	}
-
-    return 0;
 }
