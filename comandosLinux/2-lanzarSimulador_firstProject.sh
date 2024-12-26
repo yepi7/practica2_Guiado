@@ -1,0 +1,12 @@
+clear
+#Practica 1
+#roslaunch stdr_launchers server_with_map_and_gui_plus_robot_modif.launch
+
+#Practica2
+#roslaunch stdr_launchers server_with_map_and_gui_plus_robot_with_obstacles.launch
+roslaunch stdr_launchers server_with_map_and_gui_plus_robot_with_one_obstacle.launch
+
+#roslaunch stdr_launchers server_no_map.launch
+
+#Practica3
+#roslaunch stdr_launchers server_with_map_and_gui_plus_robot_modif.launch

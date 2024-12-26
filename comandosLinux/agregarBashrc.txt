@@ -1,0 +1,10 @@
+source /opt/ros/noetic/setup.bash
+source /home/alumno/robotica_movil_ws/devel/setup.bash
+alias cl='clear'
+# Para la simulacion:
+export ROS_MASTER_URI=http://localhost:11311
+# Para el robot real:
+#export ROS_MASTER_URI=http://172.29.30.175:11311
+#export ROS_URI=172.29.29.56
+#export ROS_HOSTNAME=172.29.30.175
+

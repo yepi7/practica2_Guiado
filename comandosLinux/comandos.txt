@@ -1,0 +1,40 @@
+Wifi Robotica 5G:
+Robotica1718!.
+
+IP que debe tener el robot:
+ROS_MASTER_URI=http://172.29.29.57.11311
+
+Para lanzar la app:
+roslaunch stdr_launchers server_with_map_and_gui_plus_robot.launch
+
+MakeList en:
+robotica_movil_ws/src/proyecto
+
+Crear proyecto:
+catkin_create_pkg PROYECT_NAME std_msgs nav_msgs roscpp rospy
+
+sudo apt-get install cmake
+
+Modificar el fichero ~/.bashrc. Añadir:
+export ROS_MASTER_URI=http://localhost:11311 
+
+Modificar el CMakeLists.txt dentro del proyecto
+
+Para compilar TODOS los proyectos:
+catkin_make
+
+Para compilar UNICAMENTE un proyecto:
+catkin_make --only-pkg-with-deps NOMBREPROJECTO:
+# Ejemplo: catkin_make --only-pkg-with-deps secondProj
+
+Para ejecutar:
+rosrun proyecto nodo
+
+Crear un float que contenga los tres puntos:
+ros::geometry_msgs::Point 
+
+Ver la odometria
+
+rostopic echo /robot0/odom
+rostopic list
+rostopic info
